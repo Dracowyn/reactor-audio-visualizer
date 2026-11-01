@@ -2,3 +2,6 @@ work/
 outputs/
 .sites-runtime/
 .DS_Store
+.playwright-mcp/
+node_modules/
+.taste-skill/
