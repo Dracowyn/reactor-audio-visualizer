@@ -1,4 +1,4 @@
-// View controls: drag to rotate / tilt, wheel and keyboard zoom, shortcuts.
+// View controls: drag to rotate / tilt, wheel, pinch and keyboard zoom, shortcuts.
 
 const DRAG_ROTATE = 0.006;
 const DRAG_TILT = 0.002;
@@ -14,29 +14,51 @@ function isTyping(target) {
   return TEXT_TARGETS.has(target.tagName) || target.isContentEditable;
 }
 
-function attachPointer(canvas, { renderer, onChange }) {
-  let last = null;
+/** Distance between the first two active pointers. */
+function spanOf(pointers) {
+  const [a, b] = pointers.values();
+  return Math.hypot(a.x - b.x, a.y - b.y);
+}
 
-  canvas.addEventListener('pointerdown', (e) => {
-    last = { x: e.clientX, y: e.clientY };
-    canvas.setPointerCapture(e.pointerId);
-  });
-  canvas.addEventListener('pointermove', (e) => {
-    if (!last) return;
+// One pointer rotates / tilts; two pointers pinch-zoom (touch-action: none hands us every touch).
+function attachPointer(canvas, { renderer, onChange }) {
+  const pointers = new Map(); // pointerId -> last { x, y }
+  let pinchSpan = 0;
+
+  function rotate(from, e) {
     const view = renderer.getView();
     renderer.setView({
       // Larger angle swings the near side left, so subtract: the near side follows the pointer.
-      angle: view.angle - (e.clientX - last.x) * DRAG_ROTATE,
-      tilt: view.tilt + (e.clientY - last.y) * DRAG_TILT,
+      angle: view.angle - (e.clientX - from.x) * DRAG_ROTATE,
+      tilt: view.tilt + (e.clientY - from.y) * DRAG_TILT,
     });
-    last = { x: e.clientX, y: e.clientY };
+  }
+
+  function pinch() {
+    const span = spanOf(pointers);
+    if (pinchSpan > 0 && span > 0) renderer.setView({ zoom: renderer.getView().zoom * (span / pinchSpan) });
+    pinchSpan = span;
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    canvas.setPointerCapture(e.pointerId);
+    if (pointers.size === 2) pinchSpan = spanOf(pointers);
+  });
+  canvas.addEventListener('pointermove', (e) => {
+    const from = pointers.get(e.pointerId);
+    if (!from) return;
+    pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (pointers.size === 1) rotate(from, e);
+    else pinch();
     onChange();
   });
-  const endDrag = () => {
-    last = null;
+  const endPointer = (e) => {
+    pointers.delete(e.pointerId);
+    pinchSpan = pointers.size >= 2 ? spanOf(pointers) : 0;
   };
-  canvas.addEventListener('pointerup', endDrag);
-  canvas.addEventListener('pointercancel', endDrag);
+  canvas.addEventListener('pointerup', endPointer);
+  canvas.addEventListener('pointercancel', endPointer);
 }
 
 function attachWheel(canvas, { renderer, onChange }) {
