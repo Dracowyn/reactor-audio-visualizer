@@ -21,10 +21,7 @@ const AMP_GAP_WEIGHT = 1; // amplitude gaps count like height gaps when deciding
 const OUTLINE_COLOR = '#141b12';
 const OUTLINE_WIDTH = 0.55;
 const CAP_COLOR = '#404735';
-const SPARKLE_COLOR = '#c3c7a3';
 const DETAIL_MIN_SCALE = 9; // skip tiny cap details when zoomed far out
-const SPARKLE_MIN_SCALE = 13;
-const SPARKLE_MIN_SEED = 0.6;
 
 const GLOW_THRESHOLD = 0.38;
 const GLOW_MAX_ALPHA = 0.24;
@@ -156,15 +153,11 @@ export function createRenderer(canvas) {
     g.stroke();
   }
 
-  function fillCap(i, px, topY, scale, tilt) {
+  function fillCap(px, topY, scale, tilt) {
     g.beginPath();
     g.ellipse(px, topY, scale * 0.12, scale * 0.12 * tilt, 0, 0, Math.PI * 2);
     g.fillStyle = CAP_COLOR;
     g.fill();
-    if (scale > SPARKLE_MIN_SCALE && rods[i].seed > SPARKLE_MIN_SEED) {
-      g.fillStyle = SPARKLE_COLOR;
-      g.fillRect(px - scale * 0.3, topY - scale * 0.19, 1, 1);
-    }
   }
 
   /** Only the 1-2 side faces that face the viewer are drawn, far rods first. */
@@ -179,7 +172,7 @@ export function createRenderer(canvas) {
       const level = levelOf(amps[i]);
       for (const face of faces) fillSide(face, level, px, baseY, topY);
       fillTop(i, level, px, topY);
-      if (scale >= DETAIL_MIN_SCALE) fillCap(i, px, topY, scale, tilt);
+      if (scale >= DETAIL_MIN_SCALE) fillCap(px, topY, scale, tilt);
     }
   }
 
